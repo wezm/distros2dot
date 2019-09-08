@@ -16,4 +16,4 @@ Then build the SVG (`distros.svg`), data will be fetched and cached as needed:
 
 ## Graph
 
-[The graph this tool generates](https:://bitcannon.net/images/2019/visualising-os-derivation.svg)
+![The graph this tool generates](https://bitcannon.net/images/2019/visualising-os-derivation.svg)
