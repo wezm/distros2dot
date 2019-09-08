@@ -48,6 +48,7 @@ digraph Distributions {
   nixos [label="NixOS"];
   nitrux [label="Nitrux"];
   netrunner [label="Netrunner"];
+  netbsd [label="NetBSD"];
   mx [label="MX Linux"];
   mint [label="Mint"];
   manjaro [label="Manjaro"];
@@ -107,6 +108,7 @@ digraph Distributions {
   alpine [label="Alpine"];
   _4mlinux [label="4MLinux"];
 
+  openbsd -> { netbsd };
   mx -> { antix };
   manjaro -> { arch };
   mint -> { ubuntu };
@@ -185,5 +187,5 @@ digraph Distributions {
   chakra -> { arch };
   hardenedbsd -> { freebsd };
   libreelec -> { openelec };
-  { rank = same; debian; solus; fedora; opensuse; arch; pclinuxos; reactos; mageia; puppy; freebsd; slackware; alpine; gentoo; void; _4mlinux; openmandriva; nixos; kaos; easyos; openbsd; clear; haiku; solaris; mandriva; lfs; damn_small; openelec; android }
+  { rank = same; debian; solus; fedora; opensuse; arch; pclinuxos; reactos; mageia; puppy; freebsd; slackware; alpine; gentoo; void; _4mlinux; openmandriva; nixos; kaos; easyos; netbsd; clear; haiku; solaris; mandriva; lfs; damn_small; openelec; android }
 }
