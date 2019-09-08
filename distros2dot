@@ -1,0 +1,139 @@
+#!/usr/bin/env ruby
+
+# frozen_string_literal: true
+
+require 'open-uri'
+require 'nokogiri'
+
+BASE_URL = 'https://www.distrowatch.com/'
+DISTRO_BASE_URL = 'https://www.distrowatch.com/table.php?distribution='
+
+def reduce_pair(ids, id1,  id2)
+  # If both Debian and Ubuntu are present, remove Debian
+  if ids.include?(id1) && ids.include?(id2)
+    ids.delete(id1)
+  end
+end
+
+Orphan = Struct.new(:id, :name) do
+  def safe_id
+    if id =~ /^\d/
+      '_' + id
+    else
+      id
+    end
+  end
+end
+
+class Distro
+  attr_reader :id, :name
+
+  def initialize(id, name)
+    @id = id
+    @name = name
+  end
+
+  def fetch_and_save_if_needed
+    fetch_and_save unless File.exist?(path)
+  end
+
+  def based_on_ids(distro_hash)
+    ids = based_on.map { |on| distro_hash[on] }
+    reduce_pair(ids, 'debian', 'antix')
+    reduce_pair(ids, 'debian', 'lubuntu')
+    reduce_pair(ids, 'debian', 'mint')
+    reduce_pair(ids, 'debian', 'ubuntu')
+    reduce_pair(ids, 'debian', 'xubuntu')
+    reduce_pair(ids, 'freebsd', 'trueos')
+    reduce_pair(ids, 'fedora', 'redhat')
+    ids
+  end
+
+  def safe_id
+    if id =~ /^\d/
+      '_' + id
+    else
+      id
+    end
+  end
+
+  def independent?
+    based_on.empty?
+  end
+
+  private
+
+  def fetch_and_save
+    File.open(path, 'w') do |f|
+      f.write open(DISTRO_BASE_URL + id).read
+    end
+  end
+
+  def path
+    "data/#{id}.html"
+  end
+
+  def based_on
+    based_on = []
+
+    File.open(path) do |f|
+      doc = Nokogiri::HTML(f)
+      based_on_li = doc.at_xpath('/html/body/table[2]/tr/td[1]/table[1]/tr[2]/td/ul/li[2]')
+      based_on_li.css('a').each do |a|
+        based_on << a.text.strip
+      end
+    end
+
+    based_on
+  end
+end
+
+class DistroHash
+  def initialize(distros)
+    @name_to_id = Hash[distros.map { |d| [d.name, d.id] }].freeze
+  end
+
+  def [](name)
+    key = name.sub(/\([^)]+\)/, '').strip
+    @name_to_id[key] || key.downcase.gsub(/\s+/, '_')
+  end
+end
+
+doc = Nokogiri::HTML(open(BASE_URL))
+
+distros = []
+table = doc.at_xpath('/html/body/table[2]/tr/td[3]/table[2]')
+table.css('tr td a').each do |a|
+  id, _ = a['href'].split('?', 2)
+  name = a.text.strip
+
+  distro = Distro.new(id, name)
+  warn distro.name
+  distro.fetch_and_save_if_needed
+  distros << distro
+end
+
+orphans = %w[Solaris Mandriva LFS Damn\ Small OpenELEC Android].map do |name|
+  Orphan.new(name.downcase.gsub(/\s+/, '_'), name)
+end
+
+distros_and_orphans = (distros + orphans).sort { |a, b| b.name.downcase <=> a.name.downcase }
+distro_hash = DistroHash.new(distros)
+
+puts 'digraph Distributions {'
+puts '  concentrate=true; rankdir=RL; ranksep=2.0; size="10,100;"'
+distros_and_orphans.each do |distro|
+  puts "  #{distro.safe_id} [label=\"#{distro.name}\"];"
+end
+
+puts
+distros.each do |distro|
+  based_on = distro.based_on_ids(distro_hash)
+  unless based_on.empty?
+    puts "  #{distro.safe_id} -> { #{based_on.join('; ')} };"
+  end
+end
+
+independent = distros.select(&:independent?)
+puts "  { rank = same; #{independent.map(&:safe_id).join('; ')}; #{orphans.map(&:safe_id).join('; ')} }"
+puts '}'
